@@ -1,0 +1,275 @@
+/* =========================
+   Questions Page Container
+   ========================= */
+.questions-container {
+    width: 95%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+}
+
+/* =========================
+   Page Headings
+   ========================= */
+h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 3rem;
+    margin-bottom: 1.25rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+}
+
+h2::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 24px;
+    background-color: var(--accent);
+    margin-right: 12px;
+    border-radius: 2px;
+}
+
+/* =========================
+   Body Text & Separators
+   Paragraph readability and horizontal dividers
+   ========================= */
+p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+    max-width: 80ch;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--border-subtle);
+    margin: 3rem 0;
+}
+
+/* =========================
+   Visualization Card Wrapper
+   Unified container for chart + controls + table
+   ========================= */
+.viz-block {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    margin-bottom: 40px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.219);
+    overflow: hidden;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =========================
+   Visualization Controls Bar
+   ========================= */
+.viz-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    background-color: rgba(255, 255, 255, 0.02);
+    width: 100%;
+    min-height: 68px;
+}
+
+.static-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* =========================
+   Visualization Buttons
+   Toggle buttons for switching between chart and table
+   ========================= */
+.viz-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-active);
+    color: var(--text-muted);
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.viz-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background-color: rgba(56, 189, 248, 0.05);
+}
+
+.viz-btn:disabled {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 600;
+    opacity: 1;
+    cursor: default;
+}
+
+/* =========================
+   Custom Legend 
+   Flexible legend layout for bubble and complex charts
+   ========================= */
+.custom-bubble-legend {
+    display: none;
+    justify-content: center;
+    gap: 24px;
+    padding: 20px 24px 8px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* =========================
+   Chart Area
+   Canvas wrapper with fixed minimum height
+   ========================= */
+.chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 600px;
+    padding: 24px;
+}
+
+.chart-error {
+    color: #f43f5e;
+    text-align: center;
+    padding: 20px;
+}
+
+/* =========================
+   Data Table Container
+   ========================= */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    max-height: 600px;
+    background-color: transparent;
+    border: none;
+    flex-grow: 1;
+}
+
+/* =========================
+   Table Base Styles
+   ========================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+th {
+    background-color: var(--bg-card);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 16px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-subtle);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+td {
+    padding: 14px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* =========================
+   Displays truncation or dataset notes
+   ========================= */
+.table-info {
+    padding: 12px 24px;
+    background-color: transparent;
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    text-align: right;
+}
+
+/* =========================
+   Utilities
+   ========================= */
+.page-end-spacer {
+    height: 60px;
+}
+
+.questions-container>a {
+    color: var(--accent);
+    margin: 20px 0 40px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* =========================
+   Scrollbar Styling 
+   ========================= */
+.table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: var(--border-active);
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}

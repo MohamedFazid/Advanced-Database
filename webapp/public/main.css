@@ -1,0 +1,246 @@
+/* =========================
+   Theme Tokens (CSS Variables)
+   ========================= */
+:root {
+    --bg-page: #09090b;
+    --bg-card: #18181b;
+    --bg-card-hover: #27272a;
+
+    --border-subtle: #27272a;
+    --border-active: #3f3f46;
+
+    --text-main: #f4f4f5;
+    --text-muted: #a1a1aa;
+
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.15);
+
+    --radius: 12px;
+    --transition: 0.2s ease;
+}
+
+/* =========================
+   Base Reset / Box Model
+   Predictable sizing across all elements
+   ========================= */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* =========================
+   Page Defaults
+   Full-height layout and remove browser default spacing
+   ========================= */
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* =========================
+   Body / Global Typography and Background
+   Dark theme base and subtle top glow for depth
+   ========================= */
+body {
+    background-color: var(--bg-page);
+    background-image: radial-gradient(circle at 50% 0%,
+            rgba(56, 189, 248, 0.08) 0%,
+            transparent 60%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* =========================
+   Links
+   ========================= */
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* =========================
+   Layout Container
+   Centers content and sets consistent horizontal padding
+   ========================= */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 80px 24px;
+}
+
+/* =========================
+   Header Layout
+   Title/subtitle and right-side badge area, responsive wrapping
+   ========================= */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 60px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* =========================
+   Main Title
+   Big headline with subtle gradient 
+   ========================= */
+.title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+}
+
+/* =========================
+   Subtitle / Description Text
+   Softer tone and comfortable line-height for readability
+   ========================= */
+.subtitle {
+    margin-top: 12px;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+/* =========================
+   Badge / Tag Pill
+   Small accent label used for “status” or section metadata
+   ========================= */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    padding: 6px 12px;
+    border-radius: 999px;
+}
+
+/* =========================
+   Section Title Row
+   Uppercase label with a divider line to the right
+   ========================= */
+.section-title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin: 0 0 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.section-title::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: var(--border-subtle);
+}
+
+/* =========================
+   Grid Layout
+   Responsive card grid
+   ========================= */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+/* =========================
+   Card Component
+   Clean tile with subtle border and hover lift interaction
+   ========================= */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 160px;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-active);
+    background-color: var(--bg-card-hover);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.card h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+/* =========================
+   Call-to-Action
+   Accent link at the bottom of the card with a subtle hover motion
+   ========================= */
+.card .open {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    transition: gap 0.2s ease;
+}
+
+.card:hover .open {
+    gap: 10px;
+}
+
+
+.card .open::after {
+    content: "→";
+    font-family: sans-serif;
+    transition: transform 0.2s ease;
+}
+
+/* =========================
+   Scrollbar Styling  
+   Polished, minimal scrollbar 
+   ========================= */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-page);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-active);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}

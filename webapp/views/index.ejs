@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+
+<head>
+    <!-----------------------------
+         Document Metadata & Styles
+         ------------------------------>
+    <meta charset="UTF-8" />
+    <title>Premier League Analysis (2020–2025)</title>
+    <base href="./">
+    <link rel="stylesheet" href="main.css">
+</head>
+
+<body>
+    <!-----------------------------
+         Main Page Container
+         Centers and constrains content width
+         ------------------------------>
+    <div class="container">
+
+        <!-----------------------------
+             Page Header
+             Title, description, and technology badge
+              ------------------------------>
+        <div class="header">
+            <div>
+                <h1 class="title">Premier League Analysis (2020–2025)</h1>
+                <p class="subtitle">
+                    This app queries a MySQL database built from Premier League match data (5 seasons).
+                </p>
+            </div>
+            <span class="badge">Database • MySQL • EJS</span>
+        </div>
+
+        <!-----------------------------
+             Research Questions Section
+              ------------------------------>
+        <h2 class="section-title">Research Questions</h2>
+
+        <!-----------------------------
+             Dynamic Question Grid
+              ------------------------------>
+        <div class="grid">
+            <% questions.forEach(q=> { %>
+                <div class="card">
+                    <h3>
+                        <%= q.title %>
+                    </h3>
+                    <a class="open" href="./question/<%= q.id %>">Open results</a>
+                </div>
+                <% }) %>
+        </div>
+
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title><%= question.title %></title>
+  
+  <!-----------------------------
+         Global Stylesheets
+    ------------------------------>
+  <link rel="stylesheet" href="../main.css" />
+  <link rel="stylesheet" href="../questions.css" />
+  
+  <!-----------------------------
+         Chart.js Libraries
+    ------------------------------>
+  <script src="../vendor/chart.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+  <style>
+    /* Inline overrides for specific table behavior */
+    .table-container {
+      max-height: 500px;
+      overflow-y: auto;
+      overflow-x: auto;
+      display: block;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    
+    /* Ensure table headers stay visible while scrolling */
+    th {
+      position: sticky;
+      top: 0;
+      background: #0f172a; 
+      z-index: 10;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-----------------------------
+         Page Wrapper
+    ------------------------------>
+  <div class="questions-container">
+    <a href="../">← Back to all questions</a>
+    <h1><%= question.title %></h1>
+
+    <% if (question.description) { %><p><%= question.description %></p><% } %>
+
+    <!-----------------------------
+             Empty Result Guard
+    ------------------------------>
+    <% if (!results || results.length === 0) { %>
+      <p>No results found.</p>
+    <% } else { %>
+      <% results.forEach(function(part, partIndex) { %>
+        <hr />
+        <h2><%= part.label %></h2>
+        <% if (part.description) { %><p><%= part.description %></p><% } %>
+
+        <% if (!part.rows || part.rows.length === 0) { %>
+          <p>No rows returned.</p>
+        <% } else { 
+          /* --- Server-Side Variable Setup --- */
+            /* --- JAVASCRIPT BLOCK START --- */
+            var cols = Object.keys(part.rows[0]); 
+            var chartId = 'chart-' + question.id + '-' + partIndex;
+            var toggleChartId = 'toggle-chart-' + chartId;
+            var toggleTableId = 'toggle-table-' + chartId;
+            
+            // Limit initial table rows for performance
+            var MAX_DISPLAY_ROWS = 50;
+            var displayRows = part.rows.slice(0, MAX_DISPLAY_ROWS);
+            var hiddenCount = part.rows.length - displayRows.length;
+            /* --- JAVASCRIPT BLOCK END --- */
+        %>
+        <% 
+        // Logic: Identify if this part should be "Table Only" (No Chart)
+        // specifically for Q7 Part B and Q8 Part B
+        const isQ7B = cols.includes("aggression_band") && cols.includes("avg_points_per_match"); 
+        const isQ8B=(cols.includes("referee_group") && cols.includes("home_win_pct") ); const hideChartUI=isQ7B || isQ8B; %>
+
+        <div class="viz-block" data-viz-block>
+        
+
+          <!-----------------------------
+               Chart / Table Controls
+           ------------------------------>
+          <div class="viz-controls" data-viz-controls>
+            <% if (!hideChartUI) { %>
+              <button class="viz-btn" id="<%= toggleChartId %>" type="button">Show Chart</button>
+              <button class="viz-btn" id="<%= toggleTableId %>" type="button" disabled>Show Table</button>
+              <% } else { %>
+                <span class="static-label">Data Table View</span>
+                <% } %>
+          </div>
+        
+          <% if (!hideChartUI) { %>
+            <div id="legend-<%= chartId %>" class="custom-bubble-legend"></div>
+            <div class="chart-container" id="wrap-<%= chartId %>" hidden>
+              <canvas id="<%= chartId %>" class="chart-canvas"></canvas>
+            </div>
+            <% } %>
+
+          <!-----------------------------
+                   Data Table
+           ------------------------------>
+            <div class="table-container" id="table-wrap-<%= chartId %>">
+              <table data-result-table>
+                <thead>
+                  <tr><th>#</th><% cols.forEach(function(c) { %><th><%= c %></th><% }) %></tr>
+                </thead>
+                <tbody>
+                  <% displayRows.forEach(function(row, i) { %>
+                    <tr><td><%= i + 1 %></td><% cols.forEach(function(c) { %><td><%= row[c] %></td><% }) %></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+              <% if (hiddenCount > 0) { %>
+                <div class="table-info">
+                  Showing first <%= MAX_DISPLAY_ROWS %> rows. (Full dataset of <%= part.rows.length %> rows used in chart).
+                </div>
+              <% } %>
+            </div>
+          <!-----------------------------
+                  Embedded Raw Data
+                 (Used by client-side JS)
+           ------------------------------>
+            <script type="application/json" id="data-<%= chartId %>"><%- JSON.stringify(part.rows) %></script>
+          <!-----------------------------
+               Chart Logic Script
+           ------------------------------>
+            <script>
+              (function () {
+                try {
+                  // --- DOM Elements ---
+                  const chartId = "<%= chartId %>";
+                  const btnShowChart = document.getElementById("<%= toggleChartId %>");
+                  const btnShowTable = document.getElementById("<%= toggleTableId %>");
+                  const wrapChart = document.getElementById("wrap-" + chartId);
+                  const wrapTable = document.getElementById("table-wrap-" + chartId);
+                  const legendEl = document.getElementById("legend-" + chartId);
+
+                  // Stop execution if this part has no chart controls (Part B)
+                  if (!btnShowChart || !btnShowTable || !wrapChart || !wrapTable) return;
+
+                  // --- Data parsing ---
+                  const rawEl = document.getElementById("data-" + chartId);
+                  const rows = rawEl ? JSON.parse(rawEl.textContent || "[]") : [];
+                  let chartInstance = null;
+                  let builtOnce = false;
+
+                  // Helper to check for specific columns
+                  const hasCols = (keys) =>
+                    rows.length && keys.every(k => Object.prototype.hasOwnProperty.call(rows[0], k));
+
+                  // --- Global Defaults ---
+                  if (typeof Chart !== "undefined") {
+                    Chart.defaults.font.family = '"Inter", system-ui, sans-serif';
+                    Chart.defaults.color = '#94a3b8';
+                  }
+
+                  // --- Error Handling Helper ---
+                  function showChartError(msg) {
+                    
+                    wrapChart.hidden = false;
+                    const existing = wrapChart.querySelector(".chart-error");
+                    if (!existing) {
+                      const div = document.createElement("div");
+                      div.className = "chart-error";
+                      div.textContent = msg;
+                      wrapChart.prepend(div);
+                    } else {
+                      existing.textContent = msg;
+                    }
+                  }
+
+                  // Main Chart Building Function
+                  function buildChart() {
+                    if (builtOnce) return;
+                    builtOnce = true;
+
+                    if (typeof Chart === "undefined") {
+                      showChartError("Error: Chart.js failed to load. Check ../vendor/chart.umd.js");
+                      return;
+                    }
+
+                    const canvas = document.getElementById(chartId);
+                    if (!canvas) {
+                      showChartError("Error: canvas not found for this chart block.");
+                      return;
+                    }
+
+                    
+                    const err = wrapChart.querySelector(".chart-error");
+                    if (err) err.remove();
+
+                    if (chartInstance) {
+                      try { chartInstance.destroy(); } catch (e) { }
+                      chartInstance = null;
+                    }
+
+                    const ctx = canvas.getContext("2d");
+
+                    // CHART SELECTION LOGIC based on Data Columns
+
+                    // Q1: Consistency (Bar Chart)
+                    if (hasCols(["team_name", "avg_points", "consistency_score"])) {
+                      chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                          labels: rows.map(r => r.team_name),
+                          datasets: [
+                            { label: 'Avg Points', data: rows.map(r => Number(r.avg_points) || 0) },
+                            { label: 'Consistency Score', data: rows.map(r => Number(r.consistency_score) || 0) }
+                          ]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, animation: false }
+                      });
+                    }
+
+                    // Q2: Performance vs Bookmakers (Horizontal Bar)
+                    else if (hasCols(["team_name", "points_over_expected_per_game"])) {
+                      const sortedRows = rows.slice().sort((a, b) =>
+                        (Number(b.points_over_expected_per_game) || 0) - (Number(a.points_over_expected_per_game) || 0)
+                      );
+
+                      chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                          labels: sortedRows.map(r => r.team_name),
+                          datasets: [
+                            { label: 'Actual Points/Game', data: sortedRows.map(r => Number(r.avg_actual_points_per_game) || 0) },
+                            { label: 'Expected Points/Game', data: sortedRows.map(r => Number(r.avg_expected_points_per_game) || 0) }
+                          ]
+                        },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false }
+                      });
+                    }
+
+                    // Q3: Comebacks (Stacked Bar)
+                    else if (hasCols(["team_name", "win_comeback_pct", "draw_comeback_pct", "non_loss_comeback_pct"])) {
+                      const processed = rows.map(r => {
+                        const winPct = Number(r.win_comeback_pct) || 0;
+                        const drawPct = Number(r.draw_comeback_pct) || 0;
+                        const nonLossPct = Number(r.non_loss_comeback_pct) || (winPct + drawPct);
+                        const lossPct = Math.max(0, 100 - nonLossPct);
+                        return { team: String(r.team_name), winPct, drawPct, lossPct, nonLossPct };
+                      }).sort((a, b) => b.nonLossPct - a.nonLossPct);
+
+                      chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                          labels: processed.map(p => p.team),
+                          datasets: [
+                            { label: 'Wins %', data: processed.map(p => p.winPct), stack: 's' },
+                            { label: 'Draws %', data: processed.map(p => p.drawPct), stack: 's' },
+                            { label: 'Losses %', data: processed.map(p => p.lossPct), stack: 's' }
+                          ]
+                        },
+                        options: {
+                          indexAxis: 'y',
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          animation: false,
+                          scales: { x: { stacked: true, min: 0, max: 100 }, y: { stacked: true } }
+                        }
+                      });
+                    }
+
+                    // Q4: Pressure Conversion (Bubble Chart with Quadrants)
+                    else if (hasCols(["team_name", "win_rate_with_pressure_pct", "loss_rate_despite_pressure_pct"])) {
+
+                      // Helpers for Bubble Logic
+                      function toNum(v) {
+                        const n = Number(v);
+                        return Number.isFinite(n) ? n : 0;
+                      }
+                      function median(arr) {
+                        const a = arr.slice().sort((x, y) => x - y);
+                        const mid = Math.floor(a.length / 2);
+                        return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+                      }
+
+                      // Calculate Medians for Quadrant Lines
+                      const winRates = rows.map(r => toNum(r.win_rate_with_pressure_pct));
+                      const lossRates = rows.map(r => toNum(r.loss_rate_despite_pressure_pct));
+                      const medWin = median(winRates);
+                      const medLoss = median(lossRates);
+
+                      // Dynamic Zone Labels
+                      function zoneLabel(win, loss) {
+                        const goodWin = win >= medWin;
+                        const goodLoss = loss <= medLoss;
+
+                        if (goodWin && goodLoss) return "Clinical converters (high win, low loss)";
+                        if (goodWin && !goodLoss) return "Chaotic dominance (high win, high loss)";
+                        if (!goodWin && goodLoss) return "Passive control (low win, low loss)";
+                        return "Wasteful pressure (low win, high loss)";
+                      }
+
+                      function classifyByLoss(loss) {
+                        if (loss > 25) return { name: "Wasteful", fill: "rgba(244, 63, 94, 0.35)", stroke: "rgba(244, 63, 94, 0.9)" };
+                        if (loss > 15) return { name: "Average", fill: "rgba(251, 191, 36, 0.35)", stroke: "rgba(251, 191, 36, 0.9)" };
+                        return { name: "Clinical", fill: "rgba(56, 189, 248, 0.35)", stroke: "rgba(56, 189, 248, 0.9)" };
+                      }
+
+                      // Render Custom Legend HTML
+                      if (legendEl) {
+                        legendEl.style.display = "flex";
+                        legendEl.style.justifyContent = "center";
+                        legendEl.style.gap = "18px";
+                        legendEl.style.flexWrap = "wrap";
+                        legendEl.innerHTML =
+                          '<div class="legend-item"><span class="legend-dot" style="background:#38bdf8;"></span> Clinical (≤ 15% loss)</div>' +
+                          '<div class="legend-item"><span class="legend-dot" style="background:#fbbf24;"></span> Average (15–25% loss)</div>' +
+                          '<div class="legend-item"><span class="legend-dot" style="background:#f43f5e;"></span> Wasteful (> 25% loss)</div>' +
+                          '<div class="legend-item" style="opacity:.9;">• Bubble size = pressure matches</div>' +
+                          '<div class="legend-item" style="opacity:.9;">• Lines = league medians</div>';
+                      }
+
+                      // Build datasets (one dataset per team so label plugin can show team name cleanly)
+                      const datasets = rows.map((r) => {
+                        const win = toNum(r.win_rate_with_pressure_pct);
+                        const loss = toNum(r.loss_rate_despite_pressure_pct);
+                        const matches = Math.max(1, parseInt(r.matches_with_pressure, 10) || 1);
+
+                        
+                        const radius = Math.max(6, Math.min(22, Math.sqrt(matches) * 1.6));
+
+                        const c = classifyByLoss(loss);
+
+                        return {
+                          label: String(r.team_name),
+                          data: [{
+                            x: win,
+                            y: loss,
+                            r: radius,
+
+                            
+                            team: String(r.team_name),
+                            matches: matches,
+                            wins: parseInt(r.wins_with_pressure, 10) || 0,
+                            draws: parseInt(r.draws_with_pressure, 10) || 0,
+                            losses: parseInt(r.losses_despite_pressure, 10) || 0,
+                            winRate: win,
+                            drawRate: toNum(r.draw_rate_with_pressure_pct),
+                            lossRate: loss
+                          }],
+                          backgroundColor: c.fill,
+                          borderColor: c.stroke,
+                          borderWidth: 1.5
+                        };
+                      });
+
+                      // Plugin to draw median lines
+                      const medianLinesPlugin = {
+                        id: "medianLinesPlugin",
+                        afterDraw: function (chart) {
+                          const xScale = chart.scales.x;
+                          const yScale = chart.scales.y;
+                          if (!xScale || !yScale) return;
+
+                          const ctx2 = chart.ctx;
+                          ctx2.save();
+                          ctx2.setLineDash([6, 6]);
+                          ctx2.lineWidth = 1;
+                          ctx2.strokeStyle = "rgba(148,163,184,0.45)";
+
+                          // vertical line at median win
+                          const x = xScale.getPixelForValue(medWin);
+                          ctx2.beginPath();
+                          ctx2.moveTo(x, yScale.top);
+                          ctx2.lineTo(x, yScale.bottom);
+                          ctx2.stroke();
+
+                          // horizontal line at median loss
+                          const y = yScale.getPixelForValue(medLoss);
+                          ctx2.beginPath();
+                          ctx2.moveTo(xScale.left, y);
+                          ctx2.lineTo(xScale.right, y);
+                          ctx2.stroke();
+
+                          // small labels for medians
+                          ctx2.setLineDash([]);
+                          ctx2.fillStyle = "rgba(148,163,184,0.8)";
+                          ctx2.font = "12px Inter, system-ui, sans-serif";
+                          ctx2.fillText("Median win: " + medWin.toFixed(2) + "%", x + 8, yScale.top + 14);
+                          ctx2.fillText("Median loss: " + medLoss.toFixed(2) + "%", xScale.left + 8, y - 8);
+
+                          ctx2.restore();
+                        }
+                      };
+
+                      // Plugin for Data Labels
+                      const fallbackTeamLabelsPlugin = {
+                        id: "fallbackTeamLabelsPlugin",
+                        afterDatasetsDraw: function (chart) {
+                          
+                          if (typeof window.ChartDataLabels !== "undefined") return;
+
+                          const ctx2 = chart.ctx;
+                          ctx2.save();
+                          ctx2.fillStyle = "rgba(226,232,240,0.85)";
+                          ctx2.font = "10px Inter, system-ui, sans-serif";
+
+                          chart.data.datasets.forEach((ds, dsIndex) => {
+                            const meta = chart.getDatasetMeta(dsIndex);
+                            if (!meta || meta.hidden) return;
+                            meta.data.forEach((elem, i) => {
+                              const raw = ds.data[i];
+                              if (!raw || !raw.team) return;
+                              const p = elem.getProps(["x", "y"], true);
+                              ctx2.fillText(raw.team, p.x + 6, p.y - 6);
+                            });
+                          });
+
+                          ctx2.restore();
+                        }
+                      };
+
+                      // Try to register ChartDataLabels safely 
+                      if (typeof Chart !== "undefined" && typeof window.ChartDataLabels !== "undefined") {
+                        try { Chart.register(window.ChartDataLabels); } catch (e) { }
+                      }
+
+                      // Create chart 
+                      chartInstance = new Chart(ctx, {
+                        type: "bubble",
+                        data: { datasets: datasets },
+                        options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          animation: false,
+                          plugins: {
+                            legend: { display: false },
+
+                            // If ChartDataLabels is present, show team labels
+                            datalabels: (typeof window.ChartDataLabels !== "undefined") ? {
+                              align: "top",
+                              offset: 4,
+                              color: "rgba(226,232,240,0.85)",
+                              font: { size: 10, weight: "500" },
+                              formatter: function (value, context) {
+                                return context.dataset.label;
+                              }
+                            } : false,
+
+                            tooltip: {
+                              displayColors: false,
+                              callbacks: {
+                                title: function (items) {
+                                  const raw = items && items[0] && items[0].raw ? items[0].raw : null;
+                                  return raw ? raw.team : "Team";
+                                },
+                                label: function (ctx3) {
+                                  const raw = ctx3.raw || {};
+                                  const zone = zoneLabel(raw.winRate || 0, raw.lossRate || 0);
+                                  return [
+                                    "Pressure matches: " + (raw.matches ?? 0),
+                                    "W/D/L: " + (raw.wins ?? 0) + " / " + (raw.draws ?? 0) + " / " + (raw.losses ?? 0),
+                                    "Win rate: " + (toNum(raw.winRate)).toFixed(2) + "%",
+                                    "Draw rate: " + (toNum(raw.drawRate)).toFixed(2) + "%",
+                                    "Loss rate: " + (toNum(raw.lossRate)).toFixed(2) + "%",
+                                    "Insight: " + zone
+                                  ];
+                                }
+                              }
+                            }
+                          },
+                          scales: {
+                            x: {
+                              title: { display: true, text: "Win rate under pressure (%)" },
+                              min: 0,
+                              max: 100
+                            },
+                            y: {
+                              title: { display: true, text: "Loss rate despite pressure (%)" },
+                              min: 0,
+                              max: Math.max(60, Math.ceil(Math.max.apply(null, lossRates) / 5) * 5)
+                            }
+                          }
+                        },
+                        plugins: [medianLinesPlugin, fallbackTeamLabelsPlugin]
+                      });
+                    }
+
+
+                    //Q5 & Q6: Trends Line
+                    else if (
+                      hasCols(["season_name", "avg_total_goals"]) ||
+                      hasCols(["season_name", "overall_prediction_accuracy_pct"])
+                    ) {
+                      const isQ6 = hasCols(["overall_prediction_accuracy_pct"]);
+                      const hasQ5Full = hasCols(["avg_total_goals", "avg_home_goals", "avg_away_goals"]);
+                      const hasQ6Full = hasCols(["overall_prediction_accuracy_pct", "medium_confidence_accuracy_pct"]);
+
+                      const toNum = (v) => {
+                        const n = Number(v);
+                        return Number.isFinite(n) ? n : 0;
+                      };
+
+                      // Ensure seasons plot in the right order 
+                      const sorted = rows.slice().sort((a, b) => String(a.season_name).localeCompare(String(b.season_name)));
+
+                      const labels = sorted.map(r => String(r.season_name));
+
+                      let datasets = [];
+
+                      if (!isQ6) {
+                        // Q5
+                        if (hasQ5Full) {
+                          datasets = [
+                            { label: "Avg Total Goals", data: sorted.map(r => toNum(r.avg_total_goals)), tension: 0.35, borderWidth: 3, pointRadius: 4 },
+                            { label: "Avg Home Goals", data: sorted.map(r => toNum(r.avg_home_goals)), tension: 0.35, borderWidth: 2, pointRadius: 4 },
+                            { label: "Avg Away Goals", data: sorted.map(r => toNum(r.avg_away_goals)), tension: 0.35, borderWidth: 2, pointRadius: 4 }
+                          ];
+                        } else {
+                          datasets = [
+                            { label: "Avg Goals", data: sorted.map(r => toNum(r.avg_total_goals)), tension: 0.35, borderWidth: 3, pointRadius: 4 }
+                          ];
+                        }
+                      } else {
+                        // Q6
+                        if (hasQ6Full) {
+                          datasets = [
+                            { label: "Overall Accuracy %", data: sorted.map(r => toNum(r.overall_prediction_accuracy_pct)), tension: 0.25, borderWidth: 3, pointRadius: 4 },
+                            { label: "Med-Confidence Accuracy %", data: sorted.map(r => toNum(r.medium_confidence_accuracy_pct)), tension: 0.25, borderWidth: 2, pointRadius: 4 }
+                          ];
+                        } else {
+                          datasets = [
+                            { label: "Prediction Accuracy %", data: sorted.map(r => toNum(r.overall_prediction_accuracy_pct)), tension: 0.25, borderWidth: 3, pointRadius: 4 }
+                          ];
+                        }
+                      }
+
+                      const showDataLabels = (typeof window.ChartDataLabels !== "undefined");
+
+                      chartInstance = new Chart(ctx, {
+                        type: "line",
+                        data: { labels, datasets },
+                        options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          animation: false,
+                          interaction: { mode: "index", intersect: false },
+                          scales: {
+                            x: { title: { display: true, text: "Season" } },
+                            y: {
+                              title: { display: true, text: isQ6 ? "Accuracy (%)" : "Goals (avg per match)" },
+                              beginAtZero: true,
+                              suggestedMax: isQ6 ? 100 : undefined,
+                              ticks: isQ6 ? { callback: (v) => v + "%" } : undefined
+                            }
+                          },
+                          plugins: {
+                            legend: { position: "top" },
+                            tooltip: {
+                              callbacks: {
+                                label: (tt) => {
+                                  const val = toNum(tt.parsed.y);
+                                  const label = tt.dataset.label || "";
+                                  return isQ6 ? `${label}: ${val.toFixed(2)}%` : `${label}: ${val.toFixed(2)}`;
+                                }
+                              }
+                            },
+                            datalabels: showDataLabels ? {
+                              display: false  
+                            } : false
+                          }
+                        }
+                      });
+                    }
+
+
+                   // Q7A: Aggression Scatter 
+                    else if (hasCols(["team_name", "avg_aggression_index", "avg_points_per_match"])) {
+                      const showDL = (typeof window.ChartDataLabels !== "undefined");
+                      const toNum = (v) => {
+                        const n = Number(v);
+                        return Number.isFinite(n) ? n : 0;
+                      };
+
+                      // Trendline Calculation
+                      const pts = rows.map(r => ({
+                        x: toNum(r.avg_aggression_index),
+                        y: toNum(r.avg_points_per_match),
+                        team: String(r.team_name || ""),
+                        gd: ("avg_goal_diff_per_match" in r) ? toNum(r.avg_goal_diff_per_match) : null
+                      })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+                      const n = pts.length || 1;
+                      const sumX = pts.reduce((a, p) => a + p.x, 0);
+                      const sumY = pts.reduce((a, p) => a + p.y, 0);
+                      const sumXY = pts.reduce((a, p) => a + (p.x * p.y), 0);
+                      const sumXX = pts.reduce((a, p) => a + (p.x * p.x), 0);
+                      const denom = (n * sumXX - sumX * sumX) || 1;
+                      const m = (n * sumXY - sumX * sumY) / denom;
+                      const b = (sumY - m * sumX) / n;
+
+                      const minX = Math.min(...pts.map(p => p.x));
+                      const maxX = Math.max(...pts.map(p => p.x));
+                      const trend = [
+                        { x: minX, y: m * minX + b },
+                        { x: maxX, y: m * maxX + b }
+                      ];
+
+                      chartInstance = new Chart(ctx, {
+                        type: "scatter",
+                        data: {
+                          datasets: [
+                            {
+                              label: "Teams",
+                              data: pts,
+                              pointRadius: 5,
+                              pointHoverRadius: 7
+                            },
+                            {
+                              label: "Trend",
+                              type: "line",
+                              data: trend,
+                              pointRadius: 0,
+                              borderWidth: 2
+                            }
+                          ]
+                        },
+                        options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          animation: false,
+                          interaction: { mode: "nearest", intersect: true },
+                          scales: {
+                            x: { title: { display: true, text: "Avg Aggression Index" } },
+                            y: { title: { display: true, text: "Avg Points per Match" } }
+                          },
+                          plugins: {
+                            legend: { position: "top" },
+                            tooltip: {
+                              callbacks: {
+                                label: (t) => {
+                                  const raw = t.raw || {};
+                                  if (t.dataset.label === "Trend") {
+                                    return `Trend: y = ${m.toFixed(3)}x + ${b.toFixed(3)}`;
+                                  }
+                                  const bits = [
+                                    `${raw.team}`,
+                                    `Agg: ${toNum(raw.x).toFixed(2)}`,
+                                    `Pts: ${toNum(raw.y).toFixed(3)}`
+                                  ];
+                                  if (raw.gd !== null) bits.push(`GD: ${toNum(raw.gd).toFixed(3)}`);
+                                  return bits.join(" • ");
+                                }
+                              }
+                            },
+                            
+                            datalabels: showDL ? {
+                              display: (c) => {
+                                const i = c.dataIndex;
+                                return i % 2 === 0; 
+                              },
+                              align: "top",
+                              offset: 4,
+                              color: "rgba(203, 213, 225, 0.75)",
+                              font: { size: 9 },
+                              formatter: (v) => v.team
+                            } : false
+                          }
+                        }
+                      });
+                    }
+
+
+                   // Q8A: Referee Statistics (Horizontal Bar)
+                    else if (hasCols(["referee_name", "avg_yellow_cards_per_match"])) {
+                      const toNum = (v) => {
+                        const n = Number(v);
+                        return Number.isFinite(n) ? n : 0;
+                      };
+                      const sorted = rows.slice().sort((a, b) =>
+                        toNum(b.avg_yellow_cards_per_match) - toNum(a.avg_yellow_cards_per_match)
+                      );
+                      const allRefs = sorted;
+
+                     // Dynamic Height Calculation
+                      const rowPx = 26;       
+                      const paddingPx = 90;   
+                      const targetHeight = Math.max(420, allRefs.length * rowPx + paddingPx);
+
+                      
+                      const canvas = ctx.canvas;
+                      const wrap = canvas.parentElement;
+                      if (wrap) {
+                        wrap.style.height = `${targetHeight}px`;
+                      } else {
+                        canvas.height = targetHeight;
+                      }
+
+                      chartInstance = new Chart(ctx, {
+                        type: "bar",
+                        data: {
+                          labels: allRefs.map(r => String(r.referee_name)),
+                          datasets: [
+                            {
+                              label: "Avg Yellow / Match",
+                              data: allRefs.map(r => toNum(r.avg_yellow_cards_per_match))
+                            },
+                            {
+                              label: "Avg Red / Match",
+
+                              data: allRefs.map(r => toNum(r.avg_red_cards_per_match))
+                            }
+                          ]
+                        },
+                        options: {
+                          indexAxis: "y",
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          animation: false,
+                          scales: {
+                            x: {
+                              title: { display: true, text: "Cards per match (avg)" },
+                              beginAtZero: true
+                            },
+                            y: {
+                              ticks: {
+                                autoSkip: false
+                              }
+                            }
+                          },
+                          plugins: {
+                            legend: { position: "top" },
+                            tooltip: {
+                              callbacks: {
+                                label: (t) => `${t.dataset.label}: ${Number(t.parsed.x).toFixed(3)}`
+                              }
+                            },
+                            datalabels: false
+                          }
+                        }
+                      });
+                    }
+
+
+
+                    else {
+                      showChartError("No chart template matched this data (check column aliases for this part).");
+                    }
+                  }
+
+                  // Event Listeners: Toggle Logic
+                  btnShowChart.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    wrapTable.hidden = true;
+                    wrapChart.hidden = false;
+                    btnShowChart.disabled = true;
+                    btnShowTable.disabled = false;
+
+                    requestAnimationFrame(function () {
+                      buildChart();
+                      if (chartInstance && typeof chartInstance.resize === "function") {
+                        try { chartInstance.resize(); } catch (e) { }
+                      }
+                    });
+                  });
+
+                  btnShowTable.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    wrapChart.hidden = true;
+                    wrapTable.hidden = false;
+                    btnShowChart.disabled = false;
+                    btnShowTable.disabled = true;
+                    if (legendEl) legendEl.style.display = "none";
+                  });
+
+                } catch (err) {
+                  console.error("Chart block error:", err);
+                }
+              })();
+            </script>
+
+          </div>
+        <% } %>
+      <% }) %>
+    <% } %>
+    <div class="page-end-spacer"></div>
+  </div>
+</body>
+</html>
